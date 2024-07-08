@@ -1,9 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"net"
     "log"
-	"fmt"
+	"context"
+	"time"
+	"github.com/Ridwan-Al-Mahmud/goredis/client"
 	"log/slog"
 )
 
@@ -15,13 +18,20 @@ type Config struct {
 	ListenAddr string
 }
 
+type Message struct {
+	data []byte
+	peer *Peer
+}
+
 type Server struct {
 	Config
 	peers     map[*Peer]bool
 	ln        net.Listener
 	addPeerCh chan *Peer
 	quitCh    chan struct{}
-	msgCh     chan []byte
+	msgCh     chan Message
+
+	kv        *KV
 }
 
 func NewServer(cfg Config) *Server {
@@ -33,7 +43,8 @@ func NewServer(cfg Config) *Server {
 		peers:     make(map[*Peer]bool),
 		addPeerCh: make(chan *Peer),
 		quitCh:    make(chan struct{}),
-		msgCh:     make(chan []byte),
+		msgCh:     make(chan Message),
+		kv:        NewKV(),
 	}
 }
 
@@ -48,16 +59,32 @@ func (s *Server) Start() error {
 	return s.acceptLoop()
 }
 
-func (s *Server) handleRawMsg(rawMsg []byte) error {
-	fmt.Println(string(rawMsg))
+func (s *Server) handleMsg(msg Message) error {
+	cmd, err := parseCommand(string(msg.data))
+	if err != nil {
+		return err
+	}
+	switch v := cmd.(type) {
+	case SetCommand:
+		return s.kv.Set(v.key, v.val)
+	case GetCommand:
+		val, ok := s.kv.Get(v.key)
+		if !ok {
+			return fmt.Errorf("key not found")
+		}
+		_, err := msg.peer.Send(val)
+		if err != nil {
+			slog.Error("Send error", "err", err)
+		}
+	}
 	return nil
 }
 
 func (s *Server) loop() {
 	for {
 		select {
-		case rawMsg := <- s.msgCh:
-			if err := s.handleRawMsg(rawMsg); err != nil {
+		case msg := <- s.msgCh:
+			if err := s.handleMsg(msg); err != nil {
 				slog.Info("Raw message error", "err", err)
 			}
 		case <- s.quitCh:
@@ -82,7 +109,6 @@ func (s *Server) acceptLoop() error{
 func (s *Server) handleConn(conn net.Conn) {
 	peer := NewPeer(conn, s.msgCh)
 	s.addPeerCh <- peer
-	slog.Info("New peer connected", "RemoteAddr", conn.RemoteAddr())
 	if err := peer.readLoop(); err != nil {
 		slog.Error("Peer read error", "err", err, "RemoteAddr", conn.RemoteAddr())
 	}
@@ -90,5 +116,20 @@ func (s *Server) handleConn(conn net.Conn) {
 
 func main() {
 	server := NewServer(Config{})
-	log.Fatal(server.Start())
+	go func(){
+		log.Fatal(server.Start())
+	}()
+	time.Sleep(time.Second)
+	c := client.New("localhost:5001")
+	for i := 0; i < 10; i++ {
+		if err := c.Set(context.TODO(), fmt.Sprintf("foo_%d", i), fmt.Sprintf("bar_%d", i)); err != nil {
+			log.Fatal(err)
+		}
+		time.Sleep(time.Second)
+		val, err := c.Get(context.TODO(), fmt.Sprintf("foo_%d", i))
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println("got this back => ", val)
+	}
 }
