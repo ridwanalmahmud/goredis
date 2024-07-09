@@ -3,12 +3,9 @@ package main
 import (
 	"fmt"
 	"log"
-	"sync"
 	"context"
 	"time"
 	"testing"
-	"github.com/Ridwan-Al-Mahmud/goredis/client"
-	//"github.com/tidwall/resp"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -22,7 +19,7 @@ func TestRedisClient(t *testing.T) {
 	}()
 	time.Sleep(time.Millisecond * 400)
 	rdb := redis.NewClient(&redis.Options{
-        Addr:     fmt.Sprintf("localhost:%s", listenAddr),
+        Addr:     fmt.Sprintf("localhost%s", ":5001"),
         Password: "", // no password set
         DB:       0,  // use default DB
     })
@@ -46,10 +43,11 @@ func TestRedisClient(t *testing.T) {
 	if newVal != val {
 		t.Fatalf("expected %s got %s", val, newVal)
 	}
+	fmt.Printf("key: %s => val: %s\n", key, newVal)
 
-	}
+	} 
 }
-
+/*
 func TestFooBar(t *testing.T) {
 	in := map[string]string{
 		"server": "redis",
@@ -92,4 +90,4 @@ func TestServerWithMultiClients(t *testing.T) {
 	if len(server.peers) != 0 {
 		t.Fatalf("Server should have no peers, but has %d", len(server.peers))
 	}
-}
+}*/

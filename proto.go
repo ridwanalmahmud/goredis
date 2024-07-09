@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	CommandSET = "SET"
-	CommandGET = "GET"
+	CommandSET = "set"
+	CommandGET = "get"
 	CommandHELLO = "hello"
 	CommandClient = "client"
 )

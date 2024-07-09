@@ -29,43 +29,43 @@ func NewPeer(conn net.Conn, msgCh chan Message, delCh chan *Peer) *Peer {
 func (p *Peer) readLoop() error {
 	rd := resp.NewReader(p.conn)
 	for {
-    v, _, err := rd.ReadValue()
-    if err == io.EOF {
-		p.delCh <- p
-		break
-    }
-    if err != nil {
-        log.Fatal(err)
-    }
-	var cmd Command
-    if v.Type() == resp.Array {
-		rawCMD := v.Array()[0]
-		switch rawCMD.String(){
-		case CommandGET:
-			cmd = GetCommand {
-				key: v.Array()[1].Bytes(),
-			}
-		case CommandSET:
-			cmd = SetCommand {
-				key: v.Array()[1].Bytes(),
-				val: v.Array()[2].Bytes(),
-			}
-		case CommandHELLO:
-			cmd = HelloCommand {
-				value: v.Array()[1].String(),
-			}
-		case CommandClient:
-			cmd = ClientCommand {
-				value: v.Array()[1].String(),
-			}
-		default:
-			fmt.Println("Got this unhandled command", rawCMD)
+		v, _, err := rd.ReadValue()
+		if err == io.EOF {
+			p.delCh <- p
+				break
 		}
-		p.msgCh <- Message {
-					cmd: cmd,
-					peer: p,
+		if err != nil {
+			log.Fatal(err)
 		}
-    }
+		var cmd Command
+		if v.Type() == resp.Array {
+			rawCMD := v.Array()[0]
+			switch rawCMD.String(){
+			case CommandGET:
+				cmd = GetCommand {
+					key: v.Array()[1].Bytes(),
+				}
+			case CommandSET:
+				cmd = SetCommand {
+					key: v.Array()[1].Bytes(),
+					val: v.Array()[2].Bytes(),
+				}
+			case CommandHELLO:
+				cmd = HelloCommand {
+					value: v.Array()[1].String(),
+				}
+			case CommandClient:
+				cmd = ClientCommand {
+					value: v.Array()[1].String(),
+				}
+			default:
+				fmt.Println("Got this unhandled command", rawCMD)
+			}
+			p.msgCh <- Message {
+				cmd: cmd,
+				peer: p,
+			}
+		}
 	}
 	return nil
 }
