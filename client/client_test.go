@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"testing"
+	"strconv"
 	"time"
 )
 
@@ -15,13 +16,15 @@ func TestNewClient1(t *testing.T) {
 	}
 	defer c.Close()
 	time.Sleep(time.Second)
-	if err := c.Set(context.TODO(), "foo", "1"); err != nil {
+	if err := c.Set(context.TODO(), "foo", 69); err != nil {
 		log.Fatal(err)
 	}
 	val, err := c.Get(context.TODO(), "foo")
 	if err != nil {
 		log.Fatal(err)
 	}
+	n, _ := strconv.Atoi(val)
+	fmt.Println(n)
 	fmt.Println("GET => ", val)
 }
 

@@ -8,7 +8,55 @@ import (
 	"time"
 	"testing"
 	"github.com/Ridwan-Al-Mahmud/goredis/client"
+	//"github.com/tidwall/resp"
+	"github.com/redis/go-redis/v9"
 )
+
+func TestRedisClient(t *testing.T) {	
+	listenAddr := ":5001"
+	server := NewServer(Config{
+		ListenAddr: listenAddr,
+	})
+	go func(){
+		log.Fatal(server.Start())
+	}()
+	time.Sleep(time.Millisecond * 400)
+	rdb := redis.NewClient(&redis.Options{
+        Addr:     fmt.Sprintf("localhost:%s", listenAddr),
+        Password: "", // no password set
+        DB:       0,  // use default DB
+    })
+
+	testCases := map[string]string {
+		"foo": "bar",
+		"game": "football",
+		"score": "4-1",
+		"team": "barca",
+	}
+
+	for key, val := range testCases {
+	if err := rdb.Set(context.Background(), key, val, 0).Err(); err != nil {
+        t.Fatal(err)
+    }
+
+    newVal, err := rdb.Get(context.Background(), key).Result()
+    if err != nil {
+        t.Fatal(err)
+	}
+	if newVal != val {
+		t.Fatalf("expected %s got %s", val, newVal)
+	}
+
+	}
+}
+
+func TestFooBar(t *testing.T) {
+	in := map[string]string{
+		"server": "redis",
+	}
+	out := respWriteMap(in)
+	fmt.Println(out)
+}
 
 func TestServerWithMultiClients(t *testing.T) {
 	server := NewServer(Config{})

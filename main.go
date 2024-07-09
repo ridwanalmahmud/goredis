@@ -6,6 +6,7 @@ import (
     "log"
 	"log/slog"
 	"flag"
+	"github.com/tidwall/resp"
 )
 
 const (
@@ -61,17 +62,33 @@ func (s *Server) Start() error {
 
 func (s *Server) handleMsg(msg Message) error {
 	switch v := msg.cmd.(type) {
+	case ClientCommand:
+		if err := resp.NewWriter(msg.peer.conn).WriteString("OK"); err != nil {
+			return err
+		}
 	case SetCommand:
-		return s.kv.Set(v.key, v.val)
+		if err := s.kv.Set(v.key, v.val); err != nil {
+			return err
+		}
+		if err := resp.NewWriter(msg.peer.conn).WriteString("OK"); err != nil {
+			return err	
+		}
 	case GetCommand:
 		val, ok := s.kv.Get(v.key)
 		if !ok {
 			return fmt.Errorf("key not found")
 		}
-		_, err := msg.peer.Send(val)
-		if err != nil {
-			slog.Error("Send error", "err", err)
+		if err := resp.NewWriter(msg.peer.conn).WriteString(string(val)); err != nil {
+			return err
 		}
+	case HelloCommand:
+		spec := map[string]string {
+			"server": "redis",
+		}
+		_, err := msg.peer.Send(respWriteMap(spec))
+		if err != nil {
+			return fmt.Errorf("Peer send error: %s", err)
+		}		
 	}
 	return nil
 }
