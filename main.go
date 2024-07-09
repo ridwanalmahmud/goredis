@@ -26,6 +26,7 @@ type Server struct {
 	peers     map[*Peer]bool
 	ln        net.Listener
 	addPeerCh chan *Peer
+	delPeerCh chan *Peer
 	quitCh    chan struct{}
 	msgCh     chan Message
 
@@ -40,6 +41,7 @@ func NewServer(cfg Config) *Server {
 		Config:    cfg,	
 		peers:     make(map[*Peer]bool),
 		addPeerCh: make(chan *Peer),
+		delPeerCh: make(chan *Peer),
 		quitCh:    make(chan struct{}),
 		msgCh:     make(chan Message),
 		kv:        NewKV(),
@@ -53,7 +55,7 @@ func (s *Server) Start() error {
 	}
 	s.ln = ln
 	go s.loop()
-	slog.Info("goredis server running", "ListenAddr", s.ListenAddr)
+	slog.Info("goredis server running", "listenAddr", s.ListenAddr)
 	return s.acceptLoop()
 }
 
@@ -84,7 +86,11 @@ func (s *Server) loop() {
 		case <- s.quitCh:
 			return
 		case peer := <- s.addPeerCh:
+			slog.Info("Peer connected", "remoteAddr", peer.conn.RemoteAddr())
 			s.peers[peer]= true
+		case peer := <- s.delPeerCh:
+			slog.Info("Peer disconnected", "remoteAddr", peer.conn.RemoteAddr())
+			delete(s.peers, peer)
 		}		    
 	}
 }
@@ -101,7 +107,7 @@ func (s *Server) acceptLoop() error{
 } 
 
 func (s *Server) handleConn(conn net.Conn) {
-	peer := NewPeer(conn, s.msgCh)
+	peer := NewPeer(conn, s.msgCh, s.delPeerCh)
 	s.addPeerCh <- peer
 	if err := peer.readLoop(); err != nil {
 		slog.Error("Peer read error", "err", err, "RemoteAddr", conn.RemoteAddr())

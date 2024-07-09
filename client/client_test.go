@@ -1,12 +1,29 @@
-package client 
+package client
 
 import (
-	"testing"
+	"context"
 	"fmt"
 	"log"
+	"testing"
 	"time"
-	"context"
 )
+
+func TestNewClient1(t *testing.T) {
+	c, err := New("localhost:5001")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer c.Close()
+	time.Sleep(time.Second)
+	if err := c.Set(context.TODO(), "foo", "1"); err != nil {
+		log.Fatal(err)
+	}
+	val, err := c.Get(context.TODO(), "foo")
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("GET => ", val)
+}
 
 func TestNewClient(t *testing.T) {
 	c, err := New("localhost:5001")
