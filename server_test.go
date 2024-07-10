@@ -90,4 +90,4 @@ func TestServerWithMultiClients(t *testing.T) {
 	if len(server.peers) != 0 {
 		t.Fatalf("Server should have no peers, but has %d", len(server.peers))
 	}
-}*/
+}*/ 
